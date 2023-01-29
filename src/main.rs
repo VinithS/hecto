@@ -1,29 +1,27 @@
-use std::io::{self, stdout, Read};
-use termion::raw::IntoRawMode;
-
-fn to_ctrl_byte(c: char) -> u8 {
-    (c as u8) & 0b0001_1111
-}
+use std::io::{self, stdout};
+use termion::{event::Key, input::TermRead, raw::IntoRawMode};
 
 fn main() {
     let _a = stdout().into_raw_mode().unwrap();
 
-    for b in io::stdin().bytes() {
-        match b {
-            Ok(b) => {
-                let c = b as char;
-                print!("{:#b} ->\r", b);
-
-                if c.is_control() {
-                    println!("{:?} \r", b);
-                } else {
-                    println!("{:?} ({})\r", b, c);
+    for e in io::stdin().events() {
+        match e {
+            Ok(e) => match e {
+                termion::event::Event::Key(k) => match k {
+                    Key::Char(c) => {
+                        println!("{}\r", c)
+                    }
+                    Key::Ctrl('q') => {
+                        println!("exiting..\r");
+                        break;
+                    }
+                    _ => println!("{:?}\r", e),
+                },
+                termion::event::Event::Mouse(m) => println!("Mouse event todo: {:?}\r", m),
+                termion::event::Event::Unsupported(u) => {
+                    println!("Unsupported event todo: {:?}\r", u)
                 }
-
-                if b == to_ctrl_byte('q') {
-                    break;
-                }
-            }
+            },
             Err(err) => die(err),
         }
     }
