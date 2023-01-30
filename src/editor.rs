@@ -1,40 +1,68 @@
-use std::io::{self, stdout};
+use std::io::{self, Write};
 
-use termion::{event::Key, input::TermRead, raw::IntoRawMode};
+use termion::{event::Key, input::TermRead};
 
-pub struct Editor {}
+pub struct Editor {
+    quit: bool,
+}
 
 impl Editor {
     pub fn new() -> Self {
-        Editor {}
+        Self { quit: false }
     }
-    pub fn run(&self) {
-        let _a = stdout().into_raw_mode().unwrap();
 
-        for e in io::stdin().events() {
-            match e {
-                Ok(e) => match e {
-                    termion::event::Event::Key(k) => match k {
-                        Key::Char(c) => {
-                            println!("{}\r", c)
-                        }
-                        Key::Ctrl('q') => {
-                            println!("exiting..\r");
-                            break;
-                        }
-                        _ => println!("{:?}\r", e),
-                    },
-                    termion::event::Event::Mouse(m) => println!("Mouse event todo: {:?}\r", m),
-                    termion::event::Event::Unsupported(u) => {
-                        println!("Unsupported event todo: {:?}\r", u)
-                    }
-                },
-                Err(err) => die(err),
+    pub fn run(&mut self) {
+        loop {
+            println!("loopoing \r");
+            if let Err(e) = self.refresh_screen() {
+                Editor::die(&e);
+            }
+
+            if self.quit {
+                println!("breaking \r");
+                break;
+            }
+
+            if let Err(e) = self.execute_key() {
+                Editor::die(&e);
             }
         }
     }
+
+    fn execute_key(&mut self) -> Result<(), std::io::Error> {
+        let pressed = read_keys()?;
+
+        println!("pressed, {pressed:?} \r");
+
+        match pressed {
+            Key::Char(c) => println!("{c} \r"),
+            Key::Ctrl('q') => self.quit = true,
+            _ => (),
+        }
+
+        Ok(())
+    }
+
+    fn refresh_screen(&self) -> Result<(), std::io::Error> {
+        print!("{}{}", termion::clear::All, termion::cursor::Goto(1, 1));
+
+        if self.quit {
+            println!("exiting hecto.. goodbye.\r");
+        }
+        io::stdout().flush()
+    }
+
+    fn die(e: &std::io::Error) {
+        print!("{}", termion::clear::All);
+        panic!("{}", e);
+    }
 }
 
-fn die(e: std::io::Error) {
-    panic!("{}", e);
+fn read_keys() -> Result<Key, std::io::Error> {
+    loop {
+        if let Some(key) = io::stdin().lock().keys().next() {
+            return key;
+        }
+        println!("only supported key pressed for now.. \n");
+    }
 }
